@@ -153,19 +153,101 @@ namespace Determinátor {
 
     static class Program {
 
+        delegate bool TryParse<T>(string str, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out T? parsed);
+        static T GetChecked<T>(TryParse<T> parser) {
+            T? parsed;
+            while(!parser(Console.ReadLine() ?? "null", out parsed));
+            return parsed;
+        }
+
+
         static void Main(string[] args) {
 
-            Show(3);
+            bool has_flag(string flag) {
+                foreach(string a in args) if(a == flag) return true;
+                return false;
+            }
 
+
+            if(has_flag("--show-permutations")) {
+                Console.WriteLine("Hány elem permutációját?");
+                int order = GetChecked<int>(int.TryParse);
+
+                Show(order);
+                return;
+            }
+
+            if(has_flag("--benchmark-permutations")) {
+                CompositeBenchmark();
+                return;
+            }
+
+
+            // Sima determináns kiszámolás
+            int n;
+            if(args.Length == 1 && int.TryParse(args[0], out n)) {
+                // Akkor ez az n.
+            } else {
+                Console.WriteLine("Mekkora legyen a mátrix?");
+                n = GetChecked<int>(int.TryParse);
+            }
+
+            double[,] mátrix = new double[n, n];
+
+            var rand = new Random();
+            for(int s = 0; s < n; s++) {
+                Console.Write("[");
+                for(int o = 0; o < n; o++) {
+                    mátrix[s, o] = rand.Next(-10, 10+1);
+                    Console.Write(mátrix[s, o].ToString().PadLeft(4));
+                }
+                Console.WriteLine("  ]");
+            }
+
+            // >> ITT A LÉNYEG! <<
+            int[] permutációAlap = new int[n];
+            double det = 0;
+
+            long step = 0;
+            long stepCount = Factorial(n); // Permutációxáma: n!
+            int lastPercent = -1;
+            foreach(var _ in Permutation.GenerateAll(permutációAlap)) { // Szumma
+                step++;
+                double progress = step / (double)stepCount;
+                int percent = (int)(progress * 100);
+                if(percent != lastPercent) {
+                    lastPercent = percent;
+                    Console.CursorLeft = 0;
+                    Console.Write($"{percent}%".PadRight(4));
+                }
+
+                // Összeszorzás
+                var f = new Permutation(permutációAlap);
+
+                double szorz = Math.Pow(-1, f.CountInversions()); // Definíció szerint a -1-et emeljük kitevőre.
+                for(int i = 0; i < n; i++) {
+                    szorz *= mátrix[i, f[i]];
+                }
+
+                det += szorz;
+            }
+
+            Console.WriteLine($"\n\nA determináns: {det}");
         }
 
 
         static void Show(int n) {
+            var spinner = new Spinner();
+            spinner.Start();
+
             int[] working = new int[n];
             foreach(var _ in Permutation.GenerateAll(working)) {
-                Console.WriteLine(new Permutation(working).ToString());
-                Console.WriteLine(new Permutation(working).CountInversions());
+                spinner.Stop();
+                var perm = new Permutation(working);
+                Console.WriteLine($"{perm.ToString()}, inverziószám: {perm.CountInversions()}");
+                spinner.Start();
             }
+            spinner.Stop();
         }
 
 
@@ -179,16 +261,16 @@ namespace Determinátor {
         }
 
 
+        static long Factorial(int n) => n > 1 ? n * Factorial(n - 1) : 1;
+
+
         static void Benchmark(Func<int[], IEnumerable<Nothing>> generator, int limit = int.MaxValue) {
             var stopper = new System.Diagnostics.Stopwatch();
 
             for(int n = 0; n <= limit; n++) {
                 var perm = new int[n];
 
-                int fact = 1;
-                for(int i = 1; i <= n; i++) {
-                    fact *= i;
-                }
+                long fact = Factorial(n);
 
                 stopper.Start();
                 int count = 0;

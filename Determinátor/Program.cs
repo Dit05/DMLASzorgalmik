@@ -208,6 +208,8 @@ namespace Determinátor {
             int[] permutációAlap = new int[n];
             double det = 0;
 
+            var stopper = new System.Diagnostics.Stopwatch();
+            stopper.Start();
             long step = 0;
             long stepCount = Factorial(n); // Permutációxáma: n!
             int lastPercent = -1;
@@ -231,8 +233,10 @@ namespace Determinátor {
 
                 det += szorz;
             }
+            stopper.Stop();
 
             Console.WriteLine($"\n\nA determináns: {det}");
+            Console.WriteLine($"Idő: {stopper.Elapsed}");
         }
 
 
